@@ -9,6 +9,53 @@
   --color-game-fg: #eaf6ff;
   --color-game-accent: #22f2e6;
   --color-game-danger: #ff2e6c;
+
+  --animate-score-pop: score-pop 0.28s cubic-bezier(0.22, 1.2, 0.36, 1);
+  --animate-breathe: breathe 2.4s ease-in-out infinite;
+  --animate-rise-in: rise-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes score-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes rise-in {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .animate-score-pop,
+  .animate-rise-in {
+    animation: none !important;
+  }
 }
 
 @theme inline {
