@@ -13,7 +13,8 @@ const COLORS = {
   node: 'rgba(234, 246, 255, 0.2)',
   nodeCore: 'rgba(234, 246, 255, 0.45)',
   star: 'rgba(234, 246, 255, 0.4)',
-}
+  dim: 'rgba(234, 246, 255, 0.5)',
+  }
 const PLAYER_R = 7
 const SPIKE_R = 8.5
 const LAUNCH_SPEED = 620
@@ -179,6 +180,10 @@ export default function GravityOrbit() {
     assist: 0,
     beamIn: 0,
     beamPhase: 0,
+    // live lock read: is the beam actually pointing at a reachable ring?
+    aimHasTarget: false,
+    // brief flash when a tap is refused for having no lock
+    denied: 0,
     // highest threat level on the ring we're riding (drives the warning UI)
     threat: 0,
     threatFlag: false,
@@ -327,6 +332,16 @@ export default function GravityOrbit() {
     const s = g.current
     if (s.mode !== 'orbit' || !s.current) return
     const n = s.current
+
+    // No ring in front of us: refuse the tap instead of flinging the player
+    // into the void. A tap should never be an unavoidable death -- the beam
+    // dims when there is nothing to catch, and this makes that promise real.
+    if (!s.aimHasTarget) {
+      s.denied = 1
+      gameAudio.playDenied()
+      return
+    }
+
     // fire along the exact vector the beam is showing
     let tx = s.aimX
     let ty = s.aimY
@@ -658,6 +673,7 @@ export default function GravityOrbit() {
           s.aimY /= l
         }
         s.assist += (a.weight - s.assist) * ease(dt, 9)
+        s.aimHasTarget = a.target !== null && a.weight > 0.12
         s.beamIn += (1 - s.beamIn) * ease(dt, 12)
         s.beamPhase = (s.beamPhase + dt * 0.85) % 1
 
@@ -767,6 +783,7 @@ export default function GravityOrbit() {
 
       if (s.deathFlash > 0) s.deathFlash -= dt * 2.5
       if (s.shake > 0) s.shake -= dt * 3
+      if (s.denied > 0) s.denied = Math.max(0, s.denied - dt * 3.2)
     }
 
     /** The launch beam: a soft neon streak with a pulse travelling outward. */
@@ -832,7 +849,48 @@ export default function GravityOrbit() {
       ctx.beginPath()
       ctx.arc(x1, y1, 2 + lock * 2.4, 0, TAU)
       ctx.fill()
+
+      // lock brackets: two short ticks that close in on the tip once a ring is
+      // actually catchable. This is the "safe to tap" tell.
+      if (s.aimHasTarget) {
+        const gap = 9 - lock * 4
+        const nx = -ty
+        const ny = tx
+        ctx.globalAlpha = lock * 0.9 * alpha
+        ctx.strokeStyle = COLORS.player
+        ctx.lineWidth = 1.6
+        for (const sgn of [-1, 1]) {
+          ctx.beginPath()
+          ctx.moveTo(x1 + nx * gap * sgn - tx * 4, y1 + ny * gap * sgn - ty * 4)
+          ctx.lineTo(x1 + nx * gap * sgn + tx * 4, y1 + ny * gap * sgn + ty * 4)
+          ctx.stroke()
+        }
+      } else {
+        // no ring ahead -- mark the beam as cold so the player waits
+        ctx.globalAlpha = 0.5 * alpha
+        ctx.strokeStyle = COLORS.dim
+        ctx.lineWidth = 1.4
+        ctx.setLineDash([3, 6])
+        ctx.beginPath()
+        ctx.moveTo(x0, y0)
+        ctx.lineTo(x1, y1)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
       ctx.restore()
+
+      // refusal ripple: feedback that the tap registered but was held back
+      if (s.denied > 0) {
+        const d = s.denied
+        ctx.save()
+        ctx.globalAlpha = d * 0.7
+        ctx.strokeStyle = COLORS.dim
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(px, py, PLAYER_R + 6 + (1 - d) * 18, 0, TAU)
+        ctx.stroke()
+        ctx.restore()
+      }
     }
 
     const draw = () => {
