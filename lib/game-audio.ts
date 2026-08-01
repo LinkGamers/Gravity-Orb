@@ -49,6 +49,12 @@ class GameAudio {
     }
   }
 
+  /** Fade the ambient bed up or down (e.g. duck it on the game-over screen). */
+  setMusicVolume(v: number) {
+    if (!this.ctx || !this.musicGain) return
+    this.musicGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.25)
+  }
+
   // ---- SFX --------------------------------------------------------------
 
   /** Quick rising zip when the player launches off an orbit. */
